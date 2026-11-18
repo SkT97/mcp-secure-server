@@ -57,7 +57,7 @@ The official [Python SDK](https://github.com/modelcontextprotocol/python-sdk) su
 
 ## Verification
 
-The recorded local run passed 85 tests and the Keycloak lab. See [verification](docs/verification.md) and the [threat model](docs/threat-model.md).
+The November 18, 2026 Windows run passed 87 tests and the Keycloak lab. See [verification](docs/verification.md) and the [threat model](docs/threat-model.md).
 
 <details>
 <summary>Run the Keycloak lab and see the recorded checks</summary>
@@ -99,6 +99,35 @@ uv run --locked ruff format --check .
 `uv.lock` pins the tested dependency graph. CI is configured for Linux and Windows, with the Keycloak lab on Linux.
 
 </details>
+
+### Upstream conformance evidence
+
+Run **MCP conformance evidence** from GitHub Actions for an official
+`2026-07-28` smoke test of `tools/list`. Choose **full_sweep** to record the
+complete upstream server requirement set. Many full-sweep cases expect
+tools and resources from the upstream reference fixture. The workflow pins the
+[upstream runner](https://github.com/modelcontextprotocol/conformance/tree/74edef34d674f563537be8c6587cebaa58e830ca)
+and publishes only check status and scenario names. Failed, skipped and missing
+results are reported separately. The workflow preserves the upstream exit code.
+
+The runner uses a test-only client shim because its server command offers no
+bearer-token option at this revision. The shim sends an ephemeral token only to
+the exact loopback demo endpoint and refuses redirects there. The real server
+verifies it normally. Pass `--anonymous` to run without credentials. The
+separate Keycloak job verifies scope, tenant isolation and token exchange.
+
+On November 18, 2026 the local Windows smoke passed. In the full sweep,
+12 of 37 required scenarios passed. The full runner returned exit code 1.
+Its scenario set includes capabilities and fixture tools beyond this example.
+
+To run the same check locally, build the pinned runner from a trusted checkout
+or source archive with `npm ci`. The example checks the checkout revision when
+Git metadata is present and fingerprints the entry point, lockfile and
+requirement set. Then run:
+
+```sh
+uv run --locked python -m examples.conformance --runner-root ../conformance --json-out conformance.json --smoke
+```
 
 ## Limits
 

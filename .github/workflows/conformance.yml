@@ -1,0 +1,64 @@
+name: MCP conformance evidence
+on:
+  workflow_dispatch:
+    inputs:
+      full_sweep:
+        description: Run all upstream requirements (includes cases for the upstream fixture)
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: modelcontextprotocol/conformance
+          ref: 74edef34d674f563537be8c6587cebaa58e830ca
+          path: upstream-conformance
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.12.5"
+          enable-cache: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "26.13.1"
+          package-manager-cache: false
+      - run: uv sync --locked --group dev
+      - run: npm ci --no-audit --no-fund
+        working-directory: upstream-conformance
+      - name: Run pinned upstream server checks
+        shell: bash
+        env:
+          FULL_SWEEP: ${{ inputs.full_sweep }}
+        run: |
+          report="$RUNNER_TEMP/mcp-conformance-report.json"
+          status=0
+          selection=()
+          if [[ "$FULL_SWEEP" != "true" ]]; then selection=(--smoke); fi
+          uv run --locked python -m examples.conformance --runner-root upstream-conformance --json-out "$report" "${selection[@]}" || status=$?
+          if [[ -f "$report" ]]; then
+            node -e '
+              const report = require(process.argv[1]);
+              console.log("### MCP " + report.protocol_revision + " server evidence");
+              console.log();
+              console.log("Pinned suite: `" + report.runner_revision + "`");
+              console.log(" · Exit code: " + report.runner_exit_code);
+              console.log(" · Timed out: " + report.runner_timed_out);
+              console.log(" · Fixture: " + report.fixture);
+              console.log(" · Selection: " + report.selection);
+              console.log();
+              console.log("| Scenario | Required | Status |");
+              console.log("| --- | --- | --- |");
+              for (const row of report.scenarios) {
+                console.log("| " + row.scenario + " | " + row.required + " | " + row.status + " |");
+              }
+            ' "$report" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$status"
