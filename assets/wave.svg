@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="44" viewBox="0 0 1200 44">
+  <title>Two intersecting waves</title>
+  <defs>
+    <linearGradient id="a" gradientUnits="userSpaceOnUse" x1="0" x2="1200"><stop stop-color="#359887" stop-opacity=".48"/><stop offset=".36" stop-color="#50bfa8"/><stop offset=".78" stop-color="#729ee2"/><stop offset="1" stop-color="#5374c7" stop-opacity=".62"/></linearGradient>
+    <linearGradient id="b" gradientUnits="userSpaceOnUse" x1="0" x2="1200"><stop stop-color="#7b66ca" stop-opacity=".76"/><stop offset=".52" stop-color="#a18cea"/><stop offset="1" stop-color="#497fb2" stop-opacity=".48"/></linearGradient>
+    <clipPath id="bounds"><rect width="1200" height="44"/></clipPath>
+    <mask id="mask-a" maskUnits="userSpaceOnUse" x="0" y="0" width="1200" height="44"><path class="first" d="M-400 21 C-345 6 -255 6 -200 21 S-55 36 0 21 C55 6 145 6 200 21 S345 36 400 21 C455 6 545 6 600 21 S745 36 800 21 C855 6 945 6 1000 21 S1145 36 1200 21 C1255 6 1345 6 1400 21 S1545 36 1600 21" fill="none" stroke="white" stroke-width="1.85" stroke-linecap="round"/></mask>
+    <mask id="mask-b" maskUnits="userSpaceOnUse" x="0" y="0" width="1200" height="44"><path class="second" d="M-300 22 C-258.75 33 -191.25 33 -150 22 S-41.25 11 0 22 C41.25 33 108.75 33 150 22 S258.75 11 300 22 C341.25 33 408.75 33 450 22 S558.75 11 600 22 C641.25 33 708.75 33 750 22 S858.75 11 900 22 C941.25 33 1008.75 33 1050 22 S1158.75 11 1200 22 C1241.25 33 1308.75 33 1350 22 S1458.75 11 1500 22" fill="none" stroke="white" stroke-width="1.45" stroke-linecap="round"/></mask>
+  </defs>
+  <style>
+    .first { animation: driftLeft 13s linear infinite; }
+    .second { animation: driftRight 17s linear infinite; }
+    @keyframes driftLeft { to { transform: translateX(-400px); } }
+    @keyframes driftRight { to { transform: translateX(300px); } }
+    @media (prefers-reduced-motion: reduce) { .first, .second { animation: none; } }
+  </style>
+  <g clip-path="url(#bounds)" fill="none" stroke-linecap="round">
+    <rect width="1200" height="44" fill="url(#a)" mask="url(#mask-a)"/>
+    <rect width="1200" height="44" fill="url(#b)" mask="url(#mask-b)"/>
+  </g>
+</svg>

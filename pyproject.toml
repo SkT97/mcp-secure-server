@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mcp-secure-server"
+version = "0.1.0"
+description = "Reference MCP resource server: RS256 JWT authentication with tenant-isolated synthetic records"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+dependencies = [
+    "mcp>=2.3.0,<3",
+    "PyJWT[crypto]>=2.9",
+    "cryptography>=43",
+    "httpx>=0.28,<1",
+    "httpx2>=2.16",
+    "uvicorn>=0.30",
+    "pydantic>=2.7",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=1",
+    "ruff>=0.17",
+]
+
+[project.scripts]
+mcp-secure-server = "mcp_secure_server.demo:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mcp_secure_server"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]

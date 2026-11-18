@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="540" height="102" viewBox="0 0 540 102" role="img" aria-labelledby="title desc">
+  <title id="title">Maintenance hatch</title>
+  <desc id="desc">A small lock lights up as its tumblers align.</desc>
+  <style>
+    .label { font: 13px system-ui,sans-serif; fill: #e1f5ed; }
+    .code { font: 11px ui-monospace,monospace; fill: #85efc3; }
+    .track { fill: none; stroke: #407570; stroke-width: 1.5; }
+    .tumbler{animation:turn 4.8s ease-in-out infinite alternate}.lamp{animation:light 4.8s ease-in-out infinite alternate}@keyframes turn{0%,12%{transform:rotate(-38deg)}75%,100%{transform:rotate(0)}}@keyframes light{0%,54%{opacity:.35}82%,100%{opacity:1}}
+    @media (prefers-reduced-motion: reduce) { .motion { animation: none !important; } }
+  </style>
+  <rect x="1" y="1" width="538" height="100" rx="12" fill="#081f22" stroke="#205353"/>
+  <path class="track" d="M52 52h71m294 0h71"/><circle cx="52" cy="52" r="3" fill="#85efc3"/><circle cx="488" cy="52" r="3" fill="#85efc3"/>
+    <g transform="translate(170 51)"><circle r="27" fill="#0d3436" stroke="#4aa996"/><circle r="19" fill="none" stroke="#4aa996" stroke-dasharray="2 5"/><g class="motion tumbler"><path d="M0 -14v28" stroke="#85efc3" stroke-width="4" stroke-linecap="round"/><circle r="5" fill="#ddfff3"/></g></g>
+    <text class="label" x="223" y="43">Maintenance hatch</text>
+    <text class="motion lamp code" x="223" y="65">SKT / SECTOR 97</text>
+</svg>

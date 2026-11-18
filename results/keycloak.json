@@ -1,0 +1,16 @@
+{
+  "checked_on": "2026-11-16",
+  "cross_tenant_denials": 2,
+  "data": "synthetic service accounts",
+  "identity_provider": "Keycloak",
+  "metadata_status": 200,
+  "missing_scope_status": 403,
+  "real_signed_token_tenants": 2,
+  "tenant_argument_escalation_prevented": true,
+  "token_exchange": "distinct signed token, downstream audience, subject preserved",
+  "transport": "official MCP SDK over loopback Streamable HTTP",
+  "unauthenticated_status": 401,
+  "unknown_and_cross_tenant_indistinguishable": true,
+  "version": "26.8.2",
+  "wrong_audience_status": 401
+}
