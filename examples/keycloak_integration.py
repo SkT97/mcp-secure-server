@@ -1,5 +1,6 @@
 """Disposable Docker/Keycloak integration with synthetic service accounts.
-Run from the repository: uv run python examples/keycloak_integration.py
+Run from the repository: uv run python examples/keycloak_integration.py [--jwks]
+With --jwks the server takes its signing keys from the realm JWKS instead of a PEM.
 Requires Docker. Binds loopback only; creates and removes its own container.
 """
 
@@ -13,6 +14,7 @@ import re
 import secrets
 import socket
 import subprocess
+import sys
 import threading
 import time
 
@@ -20,6 +22,7 @@ import httpx
 import jwt
 import uvicorn
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 
 from mcp_secure_server.client import client_session
 from mcp_secure_server.config import ServerConfig
@@ -141,6 +144,21 @@ async def verify(resource, issuer, key, tokens, wrong, missing, north_secret):
     }
 
 
+def forged_tokens_refused(resource, real_token, real_kid):
+    """Tokens signed by an unknown key must get 401 whatever kid they claim."""
+    claims = jwt.decode(real_token, options={"verify_signature": False})
+    forger = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    statuses = {}
+    for label, kid in (("unknown_kid", "no-such-kid"), ("real_kid_wrong_key", real_kid)):
+        forged = jwt.encode(claims, forger, algorithm="RS256", headers={"kid": kid})
+        response = httpx.post(
+            resource, json={}, headers={"Authorization": "Bearer " + forged}, timeout=10
+        )
+        assert response.status_code == 401, (label, response.status_code)
+        statuses[label + "_status"] = response.status_code
+    return statuses
+
+
 def main():
     logging.disable(logging.CRITICAL)
     name = "mcp-synthetic-" + secrets.token_hex(6)
@@ -260,10 +278,12 @@ def main():
             pem = key.public_bytes(
                 serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo
             ).decode()
+        use_jwks = "--jwks" in sys.argv[1:]
         config = ServerConfig(
             issuer_url=issuer,
             resource_server_url=resource,
-            rsa_public_key_pem=pem,
+            rsa_public_key_pem=None if use_jwks else pem,
+            jwks_url=issuer + "/protocol/openid-connect/certs" if use_jwks else None,
             allowed_hosts=("127.0.0.1:*",),
             demo_mode=True,
         )
@@ -289,6 +309,9 @@ def main():
                 secrets_by_tenant["north"],
             )
         )
+        result["key_source"] = "jwks" if use_jwks else "pem"
+        if use_jwks:
+            result.update(forged_tokens_refused(resource, tokens["north"], kid))
         print(json.dumps(result, sort_keys=True))
     finally:
         if server:

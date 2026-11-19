@@ -130,3 +130,37 @@ def test_dns_rebinding_host_rejected(asgi_request, make_token) -> None:
         headers={**MCP_HEADERS, "Authorization": f"Bearer {token}", "Host": "evil.example"},
     )
     assert response.status_code == 421
+
+
+def test_missing_credentials_challenge_names_the_scope_and_has_no_error(asgi_request) -> None:
+    response = asgi_request("POST", "/mcp", json=INIT_BODY, headers=MCP_HEADERS)
+    challenge = response.headers["www-authenticate"]
+    assert response.status_code == 401
+    assert 'scope="records:read"' in challenge
+    assert 'resource_metadata="' in challenge
+    assert "error=" not in challenge
+
+
+def test_invalid_token_challenge_keeps_the_error_and_names_the_scope(
+    asgi_request, make_token
+) -> None:
+    token = make_token(overrides={"aud": "https://other.example/"})
+    response = asgi_request(
+        "POST", "/mcp", json=INIT_BODY, headers={**MCP_HEADERS, "Authorization": f"Bearer {token}"}
+    )
+    challenge = response.headers["www-authenticate"]
+    assert response.status_code == 401
+    assert 'error="invalid_token"' in challenge
+    assert 'scope="records:read"' in challenge
+
+
+def test_insufficient_scope_challenge_names_the_required_scope(asgi_request, make_token) -> None:
+    token = make_token(overrides={"scope": "other:read"})
+    response = asgi_request(
+        "POST", "/mcp", json=INIT_BODY, headers={**MCP_HEADERS, "Authorization": f"Bearer {token}"}
+    )
+    challenge = response.headers["www-authenticate"]
+    assert response.status_code == 403
+    assert 'error="insufficient_scope"' in challenge
+    assert 'scope="records:read"' in challenge
+    assert 'resource_metadata="' in challenge

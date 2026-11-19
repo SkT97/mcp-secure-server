@@ -10,6 +10,8 @@ Requires Python 3.12+ and [uv](https://docs.astral.sh/uv/). From this repository
 uv run --locked mcp-secure-server
 ```
 
+Without cloning, `uvx --from git+https://github.com/SkT97/mcp-secure-server mcp-secure-server` runs the current main branch.
+
 The demo creates ephemeral RSA keys, binds loopback HTTP explicitly, discovers protected-resource metadata and calls the tools through the official SDK client. It verifies that a request without credentials is rejected and a north-tenant token cannot read a south-tenant record. No model, external credentials or Docker is required.
 
 <picture>
@@ -37,6 +39,7 @@ trusted issuer → verified RS256 token → SDK authentication context → tenan
 
 - Validate signature, issuer, resource audience, expiry and required identity claims.
 - Require `records:read`; take `tenant_id` exclusively from the verified principal.
+- Take the signing key from one configured RSA public key, or from the JWKS at one configured HTTPS address (`jwks_url`): the token's `kid` only selects among the published keys. The JWKS fetch refuses redirects and oversized documents, keeps only RSA keys of 2048 bits or more for RS256, refreshes at most once per 30 seconds however many unknown `kid` values arrive, and drops cached keys after an hour of failed refreshes.
 - Return the same response for another tenant's record and an unknown record.
 - Bound tool arguments and synthetic output; enable SDK host protection.
 - Require HTTPS in the client and exchange adapter, with an explicit loopback-only demo exception.
@@ -57,7 +60,7 @@ The official [Python SDK](https://github.com/modelcontextprotocol/python-sdk) su
 
 ## Verification
 
-The November 18, 2026 Windows run passed 87 tests and the Keycloak lab. See [verification](docs/verification.md) and the [threat model](docs/threat-model.md).
+The November 19, 2026 Windows run passed 138 tests and the Keycloak lab with both key sources. See [verification](docs/verification.md) and the [threat model](docs/threat-model.md).
 
 <details>
 <summary>Run the Keycloak lab and see the recorded checks</summary>
@@ -67,6 +70,8 @@ With Docker available:
 ```sh
 uv run --locked python examples/keycloak_integration.py
 ```
+
+Add `--jwks` to take the signing keys from the realm JWKS instead of a PEM. That run also checks that a token signed by an unknown key is refused, both with an unknown `kid` and with the real `kid`.
 
 This creates a dedicated, loopback-only Keycloak 26.8.2 container pinned by image digest, random temporary credentials and synthetic service accounts. It checks both tenant directions, wrong audience, missing scope, discovery and a real RFC 8693 exchange to a downstream audience. It verifies the exchanged signature and preserved subject, then removes its own container.
 
@@ -82,7 +87,7 @@ The local run on **16 November 2026** passed these checks:
 | Tenant supplied as a tool argument | Escalation prevented |
 | Downstream token exchange | Distinct signed token; target audience; original subject |
 
-See [recorded verification](docs/verification.md) and [safe integration output](results/keycloak.json).
+See [recorded verification](docs/verification.md) and the safe integration output for the [PEM key](results/keycloak.json) and the [JWKS](results/keycloak-jwks.json).
 
 </details>
 
@@ -133,7 +138,7 @@ uv run --locked python -m examples.conformance --runner-root ../conformance --js
 
 This is a small read-only reference, not a production deployment or security certification. The demo and Docker lab use synthetic service accounts; they do not implement interactive user login, consent or a complete OAuth client.
 
-The trusted RSA public key is operator-configured. Production integration needs a reviewed key-rotation strategy, TLS termination, ingress body/rate limits, request budgets, operational logging and deployment hardening. Authentication does not make retrieved content safe against prompt injection. See the [threat model](docs/threat-model.md).
+The trusted key source is operator-configured: one RSA public key, or a JWKS address. The JWKS path is also checked against the Keycloak lab. Production integration still needs TLS termination, ingress body/rate limits, request budgets, operational logging and deployment hardening. Authentication does not make retrieved content safe against prompt injection. See the [threat model](docs/threat-model.md).
 
 <details>
 <summary>Maintenance hatch · 97</summary>

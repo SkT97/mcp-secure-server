@@ -5,7 +5,16 @@ from __future__ import annotations
 import asyncio
 import time
 
-from conftest import ISSUER, RESOURCE, forge_hs256_token, generate_keypair, sign_token
+import jwt
+from conftest import (
+    ALGORITHM,
+    ISSUER,
+    RESOURCE,
+    base_payload,
+    forge_hs256_token,
+    generate_keypair,
+    sign_token,
+)
 
 from mcp_secure_server.auth import JwtTokenVerifier
 from mcp_secure_server.config import ServerConfig
@@ -78,6 +87,32 @@ def test_future_nbf_rejected(make_token, public_pem) -> None:
     assert _verify(public_pem, token) is None
 
 
+def test_missing_nbf_is_accepted_because_nbf_is_not_required(make_token, public_pem) -> None:
+    # Characterization test for the current behaviour: REQUIRED_CLAIMS covers
+    # exp, iss, aud and sub only, and PyJWT checks nbf just when it is present,
+    # so a token without nbf verifies (a future nbf is rejected above).
+    # Making nbf mandatory needs a change in src/, which is out of scope here.
+    result = _verify(public_pem, make_token(omit=("nbf",)))
+    assert result is not None, "current code does not require the nbf claim"
+    assert result.claims is not None
+    assert "nbf" not in result.claims
+
+
+def test_future_iat_rejected(make_token, public_pem) -> None:
+    # iat is optional (see below) but PyJWT rejects one stamped in the future
+    # whenever it is present.
+    future = int(time.time()) + 3600
+    assert _verify(public_pem, make_token(overrides={"iat": future})) is None
+
+
+def test_missing_iat_is_accepted_because_iat_is_not_required(make_token, public_pem) -> None:
+    # Companion to the future-iat test: iat is neither required nor bounded.
+    result = _verify(public_pem, make_token(omit=("iat",)))
+    assert result is not None, "current code does not require the iat claim"
+    assert result.claims is not None
+    assert "iat" not in result.claims
+
+
 def test_missing_sub_rejected(make_token, public_pem) -> None:
     assert _verify(public_pem, make_token(omit=("sub",))) is None
 
@@ -116,3 +151,19 @@ def test_oversized_tenant_rejected(make_token, public_pem) -> None:
 
 def test_garbage_token_rejected(public_pem) -> None:
     assert _verify(public_pem, "not-a-jwt") is None
+
+
+def test_unknown_kid_is_verified_against_the_single_configured_key(private_pem, public_pem) -> None:
+    # Characterization test for the current behaviour: only the header alg is
+    # inspected, the kid is ignored and there is no key lookup or JWKS
+    # discovery, so an unknown kid verifies against the one configured key.
+    token = jwt.encode(
+        base_payload(),
+        private_pem,
+        algorithm=ALGORITHM,
+        headers={"kid": "unconfigured-kid-1"},
+    )
+    assert jwt.get_unverified_header(token)["kid"] == "unconfigured-kid-1"
+    result = _verify(public_pem, token)
+    assert result is not None, "an unknown kid must not bypass the configured key"
+    assert result.subject == "user-1"

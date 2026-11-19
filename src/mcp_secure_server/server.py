@@ -12,6 +12,7 @@ from pydantic import AnyHttpUrl, Field
 from starlette.applications import Starlette
 
 from .auth import JwtTokenVerifier
+from .challenge import BearerChallengeScopes
 from .config import ServerConfig
 from .data import MAX_LIMIT, MIN_LIMIT, RecordStore
 
@@ -65,9 +66,11 @@ def build_server(config: ServerConfig) -> MCPServer:
 
 def make_app(server: MCPServer, config: ServerConfig) -> Starlette:
     """Streamable-HTTP ASGI app with DNS-rebinding protection enabled."""
-    return server.streamable_http_app(
+    app = server.streamable_http_app(
         transport_security=TransportSecuritySettings(
             enable_dns_rebinding_protection=True,
             allowed_hosts=list(config.allowed_hosts),
         )
     )
+    app.add_middleware(BearerChallengeScopes, scopes=config.required_scopes)
+    return app

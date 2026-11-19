@@ -110,3 +110,45 @@ def test_weak_public_key_rejected(public_pem: str) -> None:
     weak = rsa.generate_private_key(public_exponent=65537, key_size=1024)
     with pytest.raises(ConfigError):
         _config(_public_pem(weak.public_key()))
+
+
+@pytest.mark.parametrize("scope", ['bad"scope', "bad\\scope", "two words", "tab\there"])
+def test_scope_that_cannot_sit_in_a_challenge_is_rejected(public_pem: str, scope: str) -> None:
+    with pytest.raises(ConfigError):
+        _config(public_pem, required_scopes=(scope,))
+
+
+def test_jwks_url_replaces_the_pem(public_pem: str) -> None:
+    _config(public_pem, rsa_public_key_pem=None, jwks_url="https://issuer.example.test/jwks")
+
+
+def test_pem_and_jwks_together_are_ambiguous(public_pem: str) -> None:
+    with pytest.raises(ConfigError, match="exactly one"):
+        _config(public_pem, jwks_url="https://issuer.example.test/jwks")
+
+
+def test_no_key_source_is_refused(public_pem: str) -> None:
+    with pytest.raises(ConfigError, match="exactly one"):
+        _config(public_pem, rsa_public_key_pem=None)
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://issuer.example.test/jwks",
+        "https://user:pw@issuer.example.test/jwks",
+        "https://issuer.example.test/jwks?x=1",
+        "https://issuer.example.test/jwks#frag",
+    ],
+)
+def test_unsafe_jwks_urls_are_refused(public_pem: str, url: str) -> None:
+    with pytest.raises(ConfigError):
+        _config(public_pem, rsa_public_key_pem=None, jwks_url=url)
+
+
+def test_loopback_http_jwks_is_demo_only(public_pem: str) -> None:
+    _config(
+        public_pem, rsa_public_key_pem=None, jwks_url="http://127.0.0.1:8080/jwks", demo_mode=True
+    )
+    with pytest.raises(ConfigError):
+        _config(public_pem, rsa_public_key_pem=None, jwks_url="http://127.0.0.1:8080/jwks")

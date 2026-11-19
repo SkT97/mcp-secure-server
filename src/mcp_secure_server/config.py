@@ -12,6 +12,7 @@ Rules:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
@@ -20,6 +21,7 @@ from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 MIN_RSA_KEY_BITS = 2048
+_SCOPE_TOKEN = re.compile(r"[!#-[\]-~]+")
 
 
 class ConfigError(ValueError):
@@ -32,19 +34,29 @@ class ServerConfig:
 
     issuer_url: str
     resource_server_url: str
-    rsa_public_key_pem: str
+    rsa_public_key_pem: str | None = None
     allowed_hosts: tuple[str, ...] = ("127.0.0.1",)
     required_scopes: tuple[str, ...] = ("records:read",)
     demo_mode: bool = False
+    jwks_url: str | None = None
 
     def __post_init__(self) -> None:
         if not self.allowed_hosts or any(not h for h in self.allowed_hosts):
             raise ConfigError("allowed_hosts must be a non-empty list of hostnames")
         if not self.required_scopes or any(not s for s in self.required_scopes):
             raise ConfigError("required_scopes must be a non-empty list of scopes")
+        if any(not _SCOPE_TOKEN.fullmatch(s) for s in self.required_scopes):
+            raise ConfigError(
+                "each scope must be an RFC 6749 scope token (no space, quote or backslash)"
+            )
         self._validate_url("issuer_url", self.issuer_url)
         self._validate_url("resource_server_url", self.resource_server_url)
-        self._validate_public_key(self.rsa_public_key_pem)
+        if (self.rsa_public_key_pem is None) == (self.jwks_url is None):
+            raise ConfigError("set exactly one of rsa_public_key_pem and jwks_url")
+        if self.jwks_url is not None:
+            self._validate_url("jwks_url", self.jwks_url)
+        if self.rsa_public_key_pem is not None:
+            self._validate_public_key(self.rsa_public_key_pem)
 
     def _validate_url(self, label: str, url: str) -> None:
         parsed = urlparse(url)

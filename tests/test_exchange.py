@@ -173,6 +173,32 @@ def test_non_loopback_http_endpoint_rejected_in_demo_mode() -> None:
         _config(token_endpoint="http://auth.example.test/token", demo_mode=True)
 
 
+def test_ipv6_loopback_http_endpoint_allowed_in_demo_mode() -> None:
+    config = _config(token_endpoint="http://[::1]:9000/token", demo_mode=True)
+
+    subject_token = _value("subject")
+
+    result, seen = _run(
+        lambda r: httpx.Response(200, json=_ok_body(_value("access"))), config, subject_token
+    )
+
+    assert isinstance(result, str)
+    assert seen[0].url.host == "::1"
+    assert seen[0].url.port == 9000
+
+
+def test_ipv6_loopback_http_endpoint_rejected_outside_demo_mode() -> None:
+    with pytest.raises(ExchangeConfigError):
+        _config(token_endpoint="http://[::1]:9000/token")
+
+
+def test_ipv4_mapped_ipv6_loopback_endpoint_rejected_even_in_demo_mode() -> None:
+    # Loopback in practice, but LOOPBACK_HOSTS is an exact hostname match, so
+    # the IPv4-mapped form stays rejected. Pinned as the current behaviour.
+    with pytest.raises(ExchangeConfigError):
+        _config(token_endpoint="http://[::ffff:127.0.0.1]:9000/token", demo_mode=True)
+
+
 def test_endpoint_userinfo_rejected() -> None:
 
     with pytest.raises(ExchangeConfigError):
